@@ -39,6 +39,15 @@ services:
       ollama:
         condition: service_healthy
 
+  skills:
+    build: ./skills
+    container_name: skills
+    restart: unless-stopped
+    ports:
+      - "8001:8000"
+    networks:
+      - ark_network
+
 volumes:
   ollama_data:
   open-webui_data:
