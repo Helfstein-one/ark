@@ -14,11 +14,35 @@ services:
           cpus: '4'
           memory: 8G
     healthcheck:
-      test: ["CMD", "curl", "-fsS", "http://127.0.0.1:11434/api/tags"]
+      test: ["CMD", "ollama", "list"]
       interval: 30s
       timeout: 10s
       retries: 5
       start_period: 10s
+    networks:
+      - ark_network
+
+  open-webui:
+    image: ghcr.io/open-webui/open-webui:main
+    container_name: open-webui
+    restart: unless-stopped
+    ports:
+      - "8000:8080"
+    environment:
+      - OLLAMA_BASE_URL=http://ollama:11434
+      - WEBUI_NAME=Project A.R.K.
+    volumes:
+      - open-webui_data:/app/backend/data
+    networks:
+      - ark_network
+    depends_on:
+      ollama:
+        condition: service_healthy
 
 volumes:
   ollama_data:
+  open-webui_data:
+
+networks:
+  ark_network:
+    driver: bridge
