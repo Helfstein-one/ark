@@ -31,6 +31,7 @@ services:
     environment:
       - OLLAMA_BASE_URL=http://ollama:11434
       - WEBUI_NAME=Project A.R.K.
+      - ENABLE_CODE_EXECUTION=true
     volumes:
       - open-webui_data:/app/backend/data
     networks:
