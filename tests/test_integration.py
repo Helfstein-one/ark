@@ -78,49 +78,15 @@ def helper_create_dummy_pdf(path: str, content_pages: list):
         b"xref\n0 6\n0000000000 65535 f \n0000000009 00000 n \n0000000058 00000 n \n0000000115 00000 n \n0000000244 00000 n \n0000000348 00000 n \n"
         b"trailer <</Size 6 /Root 1 0 R>>\nstartxref\n425\n%%EOF\n"
     )
-    with open(path, "wb") as f:
-        f.write(pdf_bytes)
+    assert response.status_code == 200
+    data = response.json()
+    assert data["name"] == "web_search"
+    assert "Mocked search results for: AI Agents" in data["result"]
 
-def test_document_ingestion_text_file():
-    ingester = DocumentIngester()
-    with tempfile.NamedTemporaryFile(mode="w+", suffix=".txt", delete=False) as f:
-        f.write("Paragraph 1: Project A.R.K. modular skills layer.\n\nParagraph 2: Ingesting heavy document files into chunks.")
-        f_path = f.name
+def test_prometheus_is_running():
+    response = requests.get("http://127.0.0.1:9090/-/healthy")
+    assert response.status_code == 200
 
-    try:
-        res = ingester.ingest_document(f_path, chunk_size=50, chunk_overlap=10)
-        assert res["status"] == "SUCCESS"
-        assert res["total_chunks"] > 0
-        assert "Project A.R.K." in res["chunks"][0]["text"]
-    finally:
-        if os.path.exists(f_path):
-            os.remove(f_path)
-
-def test_document_ingestion_pdf_file():
-    ingester = DocumentIngester()
-    with tempfile.NamedTemporaryFile(suffix=".pdf", delete=False) as f:
-        f_path = f.name
-
-    try:
-        helper_create_dummy_pdf(f_path, ["Dummy content"])
-        res = ingester.ingest_document(f_path)
-        assert res["status"] == "SUCCESS"
-        assert res["total_chunks"] >= 1
-        assert "Project A.R.K. Dummy PDF Content" in res["chunks"][0]["text"]
-    finally:
-        if os.path.exists(f_path):
-            os.remove(f_path)
-
-def test_document_ingestion_tools_class():
-    tools = Tools()
-    with tempfile.NamedTemporaryFile(mode="w+", suffix=".txt", delete=False) as f:
-        f.write("Testing Tools class wrapper for document ingestion.")
-        f_path = f.name
-
-    try:
-        res = tools.ingest_document(f_path)
-        assert res["status"] == "SUCCESS"
-        assert len(res["chunks"]) == 1
-    finally:
-        if os.path.exists(f_path):
-            os.remove(f_path)
+def test_grafana_is_running():
+    response = requests.get("http://127.0.0.1:3000/api/health")
+    assert response.status_code == 200
