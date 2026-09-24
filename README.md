@@ -8,6 +8,10 @@ Project A.R.K. is a complete, containerized ecosystem integrating Ollama, Open W
 * **Open WebUI**: The web interface proxied securely via HTTPS for seamless user interaction and RAG integration, connected securely to Ollama.
 * **Ollama**: Local inference server on the internal container network (`11434`), strictly restricted from public host access.
 * **Skills Layer**: A FastAPI-based modular skill and tool execution layer (port `8001`), providing tools to be leveraged by the Open WebUI.
+* **Monitoring & Observability**:
+  * **cAdvisor**: Collects container resource usage and performance metrics (port `8082`).
+  * **Prometheus**: Scrapes and stores metrics (port `9090`).
+  * **Grafana**: Visualization dashboard for container metrics (port `3000`).
 
 ## Quickstart
 
