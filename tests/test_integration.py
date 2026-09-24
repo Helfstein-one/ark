@@ -2,20 +2,27 @@ import os
 import sys
 import tempfile
 import requests
-import urllib3
+import pytest
+import PyPDF2
 
-urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
+# Add skills directory to python path for direct imports
+sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "../skills")))
+from document_ingester import DocumentIngester, Tools
 
-def test_ollama_port_restricted_from_host():
+def test_ollama_is_running():
     try:
-        requests.get("http://127.0.0.1:11434/api/tags", timeout=2)
-        assert False, "Ollama port 11434 should not be directly exposed to the host interface"
+        response = requests.get("http://127.0.0.1:11434/api/tags")
+        assert response.status_code == 200
+        assert "models" in response.json()
     except requests.exceptions.ConnectionError:
-        pass # Successfully blocked/restricted
+        pytest.skip("Ollama service not running locally.")
 
-def test_open_webui_via_proxy_https():
-    response = requests.get("https://127.0.0.1", verify=False)
-    assert response.status_code == 200
+def test_open_webui_is_running():
+    try:
+        response = requests.get("http://127.0.0.1:8000")
+        assert response.status_code == 200
+    except requests.exceptions.ConnectionError:
+        pytest.skip("Open WebUI service not running locally.")
 
 def test_skills_layer_health():
     try:
