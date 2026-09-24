@@ -31,3 +31,11 @@ def test_skills_layer_call_tool():
     data = response.json()
     assert data["name"] == "web_search"
     assert "Mocked search results for: AI Agents" in data["result"]
+
+def test_prometheus_is_running():
+    response = requests.get("http://127.0.0.1:9090/-/healthy")
+    assert response.status_code == 200
+
+def test_grafana_is_running():
+    response = requests.get("http://127.0.0.1:3000/api/health")
+    assert response.status_code == 200

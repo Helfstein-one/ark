@@ -30,3 +30,9 @@
 * **Task 5.1**: Write integration tests ensuring Ollama, Open WebUI, and Skills Layer communicate properly.
 * **Task 5.2**: Create GitHub Actions (or equivalent CI) for linting and testing the Python code.
 * **Task 5.3**: Finalize user-facing documentation (`README.md`) with Quickstart, Architecture, and Troubleshooting sections.
+
+## Epic 7: Monitoring & Observability Stack
+**Description**: Implement monitoring for the local infrastructure to track CPU/Memory usage and WebUI traffic.
+* **Task 7.1**: Add Prometheus and Grafana services to `docker-compose.yml`.
+* **Task 7.2**: Configure a basic Grafana dashboard (via JSON provisioning) to track Docker/Podman container metrics (e.g., using cAdvisor).
+* **Task 7.3**: Ensure monitoring volumes are persisted securely.
