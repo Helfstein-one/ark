@@ -1,22 +1,26 @@
 from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel
-from typing import List, Optional, Any
+from typing import List, Any
 from document_ingester import DocumentIngester
 
 app = FastAPI(title="Project A.R.K. Skills Layer")
 ingester = DocumentIngester()
 
+
 class ToolInput(BaseModel):
     name: str
     arguments: dict
+
 
 class ToolResponse(BaseModel):
     name: str
     result: Any
 
+
 @app.get("/health")
 def health_check():
     return {"status": "ok"}
+
 
 @app.post("/tools/call", response_model=ToolResponse)
 def call_tool(tool_input: ToolInput):
@@ -50,6 +54,7 @@ def call_tool(tool_input: ToolInput):
 
     else:
         raise HTTPException(status_code=404, detail=f"Tool {tool_input.name} not found")
+
 
 @app.get("/tools", response_model=List[dict])
 def list_tools():
