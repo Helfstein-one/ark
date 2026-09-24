@@ -1,5 +1,8 @@
 #!/usr/bin/env bash
 
+echo "Generating SSL certificates..."
+"$(dirname "$0")/generate-certs.sh"
+
 echo "Starting Project A.R.K. containers..."
 docker compose up -d
 

@@ -1,3 +1,6 @@
+Write-Host "Generating SSL certificates..."
+& "$PSScriptRoot\generate-certs.sh"
+
 Write-Host "Starting Project A.R.K. containers..."
 docker compose up -d
 
