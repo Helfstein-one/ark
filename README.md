@@ -1,11 +1,12 @@
 # Project A.R.K.
 
-Project A.R.K. is a complete, containerized ecosystem integrating Ollama, Open WebUI, and a Modular Python Skills Layer for rapid development of localized LLM capabilities.
+Project A.R.K. is a complete, containerized ecosystem integrating Ollama, Open WebUI, a Reverse Proxy (Nginx), and a Modular Python Skills Layer for rapid development of localized LLM capabilities.
 
 ## Architecture
 
-* **Ollama**: Local inference server exposing models at `11434`.
-* **Open WebUI**: The web interface (port `8000`) for seamless user interaction and RAG integration, connected securely to Ollama.
+* **Reverse Proxy (Nginx)**: Secure entry point routing HTTPS traffic (ports `443` / `8443`) to Open WebUI and enforcing internal network isolation.
+* **Open WebUI**: The web interface proxied securely via HTTPS for seamless user interaction and RAG integration, connected securely to Ollama.
+* **Ollama**: Local inference server on the internal container network (`11434`), strictly restricted from public host access.
 * **Skills Layer**: A FastAPI-based modular skill and tool execution layer (port `8001`), providing tools to be leveraged by the Open WebUI.
 * **Monitoring & Observability**:
   * **cAdvisor**: Collects container resource usage and performance metrics (port `8082`).
@@ -30,6 +31,11 @@ Run the provided PowerShell bootstrap script:
 ```
 
 ### Manual Usage
+Before running manually, ensure self-signed SSL/TLS certificates are generated:
+```bash
+./scripts/generate-certs.sh
+```
+
 You can also use the Makefile:
 * `make up`: Start all containers in the background.
 * `make down`: Stop all containers.
@@ -47,3 +53,6 @@ You can also use the Makefile:
 
 * **Open WebUI doesn't connect to Ollama:**
   Ensure the `ark_network` bridge is working correctly and `OLLAMA_BASE_URL` is set to `http://ollama:11434` in `docker-compose.yml`.
+
+* **SSL Certificate Warnings:**
+  Self-signed certificates are generated for local development. Accept the certificate warning in your browser when accessing `https://localhost`.

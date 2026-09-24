@@ -1,13 +1,17 @@
 import requests
+import urllib3
 
-def test_ollama_is_running():
-    response = requests.get("http://127.0.0.1:11434/api/tags")
-    assert response.status_code == 200
-    assert "models" in response.json()
+urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 
-def test_open_webui_is_running():
-    response = requests.get("http://127.0.0.1:8000")
-    # Open WebUI returns 200 for the index HTML
+def test_ollama_port_restricted_from_host():
+    try:
+        requests.get("http://127.0.0.1:11434/api/tags", timeout=2)
+        assert False, "Ollama port 11434 should not be directly exposed to the host interface"
+    except requests.exceptions.ConnectionError:
+        pass # Successfully blocked/restricted
+
+def test_open_webui_via_proxy_https():
+    response = requests.get("https://127.0.0.1", verify=False)
     assert response.status_code == 200
 
 def test_skills_layer_health():
