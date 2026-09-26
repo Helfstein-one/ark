@@ -127,6 +127,45 @@ def test_document_ingestion_text_file():
             os.remove(f_path)
 
 
+def test_document_ingestion_empty_file():
+    ingester = DocumentIngester()
+    with tempfile.NamedTemporaryFile(mode="w+", suffix=".txt", delete=False) as f:
+        f.write("   \n\t  ")
+        f_path = f.name
+
+    try:
+        res = ingester.ingest_document(f_path)
+        assert res["status"] == "SKIPPED"
+        assert res["total_chunks"] == 0
+        assert res["chunks"] == []
+    finally:
+        if os.path.exists(f_path):
+            os.remove(f_path)
+
+
+def test_document_ingestion_malformed_and_unsupported_chars():
+    ingester = DocumentIngester()
+    with tempfile.NamedTemporaryFile(mode="w+", suffix=".txt", delete=False) as f:
+        f.write("\x00\x01\x02Hello \x07World!\x7f")
+        f_path = f.name
+
+    try:
+        res = ingester.ingest_document(f_path)
+        assert res["status"] == "SUCCESS"
+        assert res["total_chunks"] == 1
+        assert res["chunks"][0]["text"] == "Hello World!"
+    finally:
+        if os.path.exists(f_path):
+            os.remove(f_path)
+
+
+def test_sanitize_text_direct():
+    ingester = DocumentIngester()
+    assert ingester.sanitize_text("") == ""
+    assert ingester.sanitize_text(None) == ""
+    assert ingester.sanitize_text("\x00Valid\x08 Text\n") == "Valid Text\n"
+
+
 def test_document_ingestion_pdf_file():
     ingester = DocumentIngester()
     with tempfile.NamedTemporaryFile(suffix=".pdf", delete=False) as f:

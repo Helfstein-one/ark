@@ -14,6 +14,29 @@ class DocumentIngester:
     def __init__(self):
         pass
 
+    def sanitize_text(self, text: str) -> str:
+        """
+        Filters out unsupported characters, null bytes, and non-printable control characters
+        while preserving standard formatting characters like newlines and tabs.
+        :param text: Raw string text.
+        :return: Cleaned/sanitized string content.
+        """
+        if not text or not isinstance(text, str):
+            return ""
+
+        text = text.replace("\x00", "")
+        try:
+            text = text.encode("utf-8", errors="ignore").decode("utf-8")
+        except Exception:
+            return ""
+
+        sanitized = []
+        for char in text:
+            if char in ("\n", "\r", "\t") or (ord(char) >= 32 and ord(char) != 127):
+                sanitized.append(char)
+
+        return "".join(sanitized)
+
     def extract_text(self, file_path: str) -> str:
         """
         Extracts raw text from a PDF or plain text file.
@@ -32,11 +55,14 @@ class DocumentIngester:
                 for page_num, page in enumerate(reader.pages):
                     page_text = page.extract_text()
                     if page_text:
-                        text_content.append(page_text)
+                        sanitized_page = self.sanitize_text(page_text)
+                        if sanitized_page.strip():
+                            text_content.append(sanitized_page)
             return "\n\n".join(text_content)
         else:
             with open(file_path, "r", encoding="utf-8", errors="ignore") as f:
-                return f.read()
+                raw_text = f.read()
+                return self.sanitize_text(raw_text)
 
     def chunk_text(
         self, text: str, chunk_size: int = 500, chunk_overlap: int = 50
@@ -49,13 +75,14 @@ class DocumentIngester:
         :param chunk_overlap: Overlap size between adjacent chunks in characters.
         :return: List of dicts containing chunk metadata and content.
         """
-        if not text or not text.strip():
+        sanitized = self.sanitize_text(text)
+        if not sanitized or not sanitized.strip():
             return []
 
         if chunk_overlap >= chunk_size:
             chunk_overlap = max(0, chunk_size - 1)
 
-        cleaned_text = text.strip()
+        cleaned_text = sanitized.strip()
         text_length = len(cleaned_text)
 
         chunks = []
@@ -66,7 +93,6 @@ class DocumentIngester:
             end = start + chunk_size
 
             if end < text_length:
-                # Try to break at paragraph boundary first, then sentence boundary, then space
                 cut_point = -1
                 for delimiter in ["\n\n", "\n", ". ", " "]:
                     pos = cleaned_text.rfind(delimiter, start, end)
@@ -109,11 +135,22 @@ class DocumentIngester:
         """
         try:
             text = self.extract_text(file_path)
-            chunks = self.chunk_text(text, chunk_size=chunk_size, chunk_overlap=chunk_overlap)
+            sanitized_text = self.sanitize_text(text)
+            if not sanitized_text or not sanitized_text.strip():
+                return {
+                    "status": "SKIPPED",
+                    "file_path": file_path,
+                    "reason": "Empty or invalid text payload",
+                    "total_characters": 0,
+                    "total_chunks": 0,
+                    "chunks": [],
+                }
+
+            chunks = self.chunk_text(sanitized_text, chunk_size=chunk_size, chunk_overlap=chunk_overlap)
             return {
                 "status": "SUCCESS",
                 "file_path": file_path,
-                "total_characters": len(text),
+                "total_characters": len(sanitized_text),
                 "total_chunks": len(chunks),
                 "chunks": chunks,
             }
