@@ -127,6 +127,47 @@ def test_document_ingestion_text_file():
             os.remove(f_path)
 
 
+def test_document_ingestion_empty_and_whitespace_payload():
+    ingester = DocumentIngester()
+    assert ingester.chunk_text("") == []
+    assert ingester.chunk_text("   \n\t  ") == []
+    assert ingester.chunk_text(None) == []
+
+    with tempfile.NamedTemporaryFile(mode="w+", suffix=".txt", delete=False) as f:
+        f.write("   \n   ")
+        f_path = f.name
+
+    try:
+        res = ingester.ingest_document(f_path)
+        assert res["status"] == "SUCCESS"
+        assert res["total_chunks"] == 0
+        assert res["chunks"] == []
+    finally:
+        if os.path.exists(f_path):
+            os.remove(f_path)
+
+
+def test_document_ingestion_sanitizes_unsupported_characters():
+    ingester = DocumentIngester()
+    dirty_text = "Hello\x00 World\x07!\ufffd Valid text."
+    chunks = ingester.chunk_text(dirty_text)
+    assert len(chunks) == 1
+    assert chunks[0]["text"] == "Hello World! Valid text."
+
+    with tempfile.NamedTemporaryFile(mode="w+", suffix=".txt", delete=False) as f:
+        f.write("Dirty\x00file\x03\ufffd content")
+        f_path = f.name
+
+    try:
+        res = ingester.ingest_document(f_path)
+        assert res["status"] == "SUCCESS"
+        assert res["total_chunks"] == 1
+        assert res["chunks"][0]["text"] == "Dirtyfile content"
+    finally:
+        if os.path.exists(f_path):
+            os.remove(f_path)
+
+
 def test_document_ingestion_pdf_file():
     ingester = DocumentIngester()
     with tempfile.NamedTemporaryFile(suffix=".pdf", delete=False) as f:

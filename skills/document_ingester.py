@@ -14,6 +14,28 @@ class DocumentIngester:
     def __init__(self):
         pass
 
+    def sanitize_text(self, text: str) -> str:
+        """
+        Filters out unsupported characters, malformed encodings, null bytes,
+        Unicode replacement characters (\\ufffd), and non-printable control characters,
+        while preserving standard whitespace characters (space, \\n, \\r, \\t).
+        """
+        if not text or not isinstance(text, str):
+            return ""
+
+        # Remove null bytes, unicode replacement character, and invalid surrogates
+        text = text.replace("\x00", "").replace("\ufffd", "")
+
+        # Filter non-printable control characters except standard whitespace (\\n, \\r, \\t)
+        sanitized_chars = []
+        for char in text:
+            code = ord(char)
+            # Allow printable characters and standard whitespace (\t, \n, \r)
+            if (code >= 32 and code != 127) or char in ("\n", "\r", "\t"):
+                sanitized_chars.append(char)
+
+        return "".join(sanitized_chars)
+
     def extract_text(self, file_path: str) -> str:
         """
         Extracts raw text from a PDF or plain text file.
@@ -32,11 +54,11 @@ class DocumentIngester:
                 for page_num, page in enumerate(reader.pages):
                     page_text = page.extract_text()
                     if page_text:
-                        text_content.append(page_text)
+                        text_content.append(self.sanitize_text(page_text))
             return "\n\n".join(text_content)
         else:
             with open(file_path, "r", encoding="utf-8", errors="ignore") as f:
-                return f.read()
+                return self.sanitize_text(f.read())
 
     def chunk_text(
         self, text: str, chunk_size: int = 500, chunk_overlap: int = 50
@@ -49,13 +71,17 @@ class DocumentIngester:
         :param chunk_overlap: Overlap size between adjacent chunks in characters.
         :return: List of dicts containing chunk metadata and content.
         """
-        if not text or not text.strip():
+        if not text or not isinstance(text, str):
+            return []
+
+        sanitized_text = self.sanitize_text(text)
+        if not sanitized_text or not sanitized_text.strip():
             return []
 
         if chunk_overlap >= chunk_size:
             chunk_overlap = max(0, chunk_size - 1)
 
-        cleaned_text = text.strip()
+        cleaned_text = sanitized_text.strip()
         text_length = len(cleaned_text)
 
         chunks = []
