@@ -8,6 +8,7 @@ description: Analisa código Python estaticamente, verificando conformidade sint
 import ast
 from typing import Dict, Any
 
+
 class Tools:
     def __init__(self):
         pass
