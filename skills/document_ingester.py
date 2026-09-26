@@ -14,6 +14,28 @@ class DocumentIngester:
     def __init__(self):
         pass
 
+    def clean_text(self, text: str) -> str:
+        """
+        Validates and cleans input text payload by stripping invalid encodings,
+        null bytes, unicode surrogates, and unsupported control characters.
+        :param text: Raw string input.
+        :return: Cleaned text string.
+        """
+        if not text or not isinstance(text, str):
+            return ""
+
+        # Ensure valid UTF-8 string without unicode surrogates
+        cleaned = text.encode("utf-8", errors="ignore").decode("utf-8", errors="ignore")
+
+        # Remove null bytes and non-printable control characters except \n, \r, \t
+        filtered_chars = []
+        for char in cleaned:
+            code = ord(char)
+            if char in ("\n", "\r", "\t") or (code >= 32 and not (127 <= code <= 159)):
+                filtered_chars.append(char)
+
+        return "".join(filtered_chars).strip()
+
     def extract_text(self, file_path: str) -> str:
         """
         Extracts raw text from a PDF or plain text file.
@@ -49,13 +71,13 @@ class DocumentIngester:
         :param chunk_overlap: Overlap size between adjacent chunks in characters.
         :return: List of dicts containing chunk metadata and content.
         """
-        if not text or not text.strip():
+        cleaned_text = self.clean_text(text)
+        if not cleaned_text:
             return []
 
         if chunk_overlap >= chunk_size:
             chunk_overlap = max(0, chunk_size - 1)
 
-        cleaned_text = text.strip()
         text_length = len(cleaned_text)
 
         chunks = []
@@ -108,12 +130,34 @@ class DocumentIngester:
         :return: Dict containing status, document metadata, total chunks, and chunk list.
         """
         try:
-            text = self.extract_text(file_path)
-            chunks = self.chunk_text(text, chunk_size=chunk_size, chunk_overlap=chunk_overlap)
+            raw_text = self.extract_text(file_path)
+            cleaned_text = self.clean_text(raw_text)
+
+            if not cleaned_text:
+                return {
+                    "status": "SKIPPED",
+                    "file_path": file_path,
+                    "total_characters": 0,
+                    "total_chunks": 0,
+                    "chunks": [],
+                    "message": "Empty or invalid text payload skipped."
+                }
+
+            chunks = self.chunk_text(cleaned_text, chunk_size=chunk_size, chunk_overlap=chunk_overlap)
+            if not chunks:
+                return {
+                    "status": "SKIPPED",
+                    "file_path": file_path,
+                    "total_characters": len(cleaned_text),
+                    "total_chunks": 0,
+                    "chunks": [],
+                    "message": "Empty or invalid text payload skipped."
+                }
+
             return {
                 "status": "SUCCESS",
                 "file_path": file_path,
-                "total_characters": len(text),
+                "total_characters": len(cleaned_text),
                 "total_chunks": len(chunks),
                 "chunks": chunks,
             }

@@ -156,3 +156,54 @@ def test_document_ingestion_tools_class():
     finally:
         if os.path.exists(f_path):
             os.remove(f_path)
+
+
+def test_clean_text_validation():
+    ingester = DocumentIngester()
+    assert ingester.clean_text("Hello\x00World") == "HelloWorld"
+    assert ingester.clean_text("\x01\x02\x07Text\x1b") == "Text"
+    assert ingester.clean_text("Hello \ud800 World") == "Hello  World"
+    assert ingester.clean_text("") == ""
+    assert ingester.clean_text("   \t\n  ") == ""
+    assert ingester.clean_text(None) == ""
+
+
+def test_chunk_text_empty_and_invalid_payloads():
+    ingester = DocumentIngester()
+    assert ingester.chunk_text("") == []
+    assert ingester.chunk_text("   \n\t  ") == []
+    assert ingester.chunk_text("\x00\x00\x00") == []
+    assert ingester.chunk_text("\x01\x02\x03\x04") == []
+    assert ingester.chunk_text(None) == []
+
+
+def test_ingest_document_empty_file_skipped():
+    ingester = DocumentIngester()
+    with tempfile.NamedTemporaryFile(mode="w+", suffix=".txt", delete=False) as f:
+        f.write("")
+        f_path = f.name
+
+    try:
+        res = ingester.ingest_document(f_path)
+        assert res["status"] == "SKIPPED"
+        assert res["total_chunks"] == 0
+        assert res["chunks"] == []
+    finally:
+        if os.path.exists(f_path):
+            os.remove(f_path)
+
+
+def test_ingest_document_control_chars_only_file_skipped():
+    ingester = DocumentIngester()
+    with tempfile.NamedTemporaryFile(mode="w+", suffix=".txt", delete=False) as f:
+        f.write("\x00\x01\x02\x07")
+        f_path = f.name
+
+    try:
+        res = ingester.ingest_document(f_path)
+        assert res["status"] == "SKIPPED"
+        assert res["total_chunks"] == 0
+        assert res["chunks"] == []
+    finally:
+        if os.path.exists(f_path):
+            os.remove(f_path)
