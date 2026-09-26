@@ -14,6 +14,32 @@ class DocumentIngester:
     def __init__(self):
         pass
 
+    def sanitize_text(self, text: str) -> str:
+        """
+        Sanitizes text by removing null bytes, non-printable control characters,
+        and handling malformed encodings or invalid characters.
+        :param text: Input raw text to sanitize.
+        :return: Cleaned string.
+        """
+        if not text or not isinstance(text, str):
+            return ""
+
+        # Remove null bytes
+        cleaned = text.replace("\x00", "")
+
+        # Handle surrogate / malformed character encoding issues safely
+        cleaned = cleaned.encode("utf-8", "ignore").decode("utf-8", "ignore")
+
+        # Filter non-printable control characters, preserving standard whitespace (\n, \r, \t)
+        sanitized_chars = []
+        for char in cleaned:
+            if char in ("\n", "\r", "\t"):
+                sanitized_chars.append(char)
+            elif char.isprintable():
+                sanitized_chars.append(char)
+
+        return "".join(sanitized_chars)
+
     def extract_text(self, file_path: str) -> str:
         """
         Extracts raw text from a PDF or plain text file.
@@ -49,13 +75,14 @@ class DocumentIngester:
         :param chunk_overlap: Overlap size between adjacent chunks in characters.
         :return: List of dicts containing chunk metadata and content.
         """
-        if not text or not text.strip():
+        sanitized_text = self.sanitize_text(text)
+        if not sanitized_text or not sanitized_text.strip():
             return []
 
         if chunk_overlap >= chunk_size:
             chunk_overlap = max(0, chunk_size - 1)
 
-        cleaned_text = text.strip()
+        cleaned_text = sanitized_text.strip()
         text_length = len(cleaned_text)
 
         chunks = []
@@ -108,12 +135,13 @@ class DocumentIngester:
         :return: Dict containing status, document metadata, total chunks, and chunk list.
         """
         try:
-            text = self.extract_text(file_path)
-            chunks = self.chunk_text(text, chunk_size=chunk_size, chunk_overlap=chunk_overlap)
+            raw_text = self.extract_text(file_path)
+            sanitized_text = self.sanitize_text(raw_text)
+            chunks = self.chunk_text(sanitized_text, chunk_size=chunk_size, chunk_overlap=chunk_overlap)
             return {
                 "status": "SUCCESS",
                 "file_path": file_path,
-                "total_characters": len(text),
+                "total_characters": len(sanitized_text),
                 "total_chunks": len(chunks),
                 "chunks": chunks,
             }

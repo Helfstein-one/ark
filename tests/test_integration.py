@@ -127,6 +127,83 @@ def test_document_ingestion_text_file():
             os.remove(f_path)
 
 
+def test_sanitize_text():
+    ingester = DocumentIngester()
+    # Null bytes removal
+    assert ingester.sanitize_text("Hello\x00World") == "HelloWorld"
+    # Control characters removal
+    assert ingester.sanitize_text("Hello\x01\x02\x08World") == "HelloWorld"
+    # Preserve whitespace (\n, \r, \t)
+    assert ingester.sanitize_text("Hello\n\r\tWorld") == "Hello\n\r\tWorld"
+    # Empty and non-string inputs
+    assert ingester.sanitize_text("") == ""
+    assert ingester.sanitize_text(None) == ""
+    assert ingester.sanitize_text(12345) == ""
+    # Malformed unicode / surrogate sequences
+    surrogate_str = "Clean\ud800Text"
+    sanitized_surrogate = ingester.sanitize_text(surrogate_str)
+    assert "Clean" in sanitized_surrogate
+    assert "Text" in sanitized_surrogate
+
+
+def test_chunk_text_empty_and_invalid_payloads():
+    ingester = DocumentIngester()
+    assert ingester.chunk_text("") == []
+    assert ingester.chunk_text("   \n\t   ") == []
+    assert ingester.chunk_text(None) == []
+    assert ingester.chunk_text("\x00\x01\x02") == []
+
+
+def test_document_ingestion_empty_file():
+    ingester = DocumentIngester()
+    with tempfile.NamedTemporaryFile(mode="w+", suffix=".txt", delete=False) as f:
+        f.write("")
+        f_path = f.name
+
+    try:
+        res = ingester.ingest_document(f_path)
+        assert res["status"] == "SUCCESS"
+        assert res["total_characters"] == 0
+        assert res["total_chunks"] == 0
+        assert res["chunks"] == []
+    finally:
+        if os.path.exists(f_path):
+            os.remove(f_path)
+
+
+def test_document_ingestion_corrupted_payload_file():
+    ingester = DocumentIngester()
+    with tempfile.NamedTemporaryFile(mode="w+", suffix=".txt", delete=False) as f:
+        f.write("\x00\x01\x02\x07\x0b")
+        f_path = f.name
+
+    try:
+        res = ingester.ingest_document(f_path)
+        assert res["status"] == "SUCCESS"
+        assert res["total_characters"] == 0
+        assert res["total_chunks"] == 0
+        assert res["chunks"] == []
+    finally:
+        if os.path.exists(f_path):
+            os.remove(f_path)
+
+
+def test_document_ingestion_mixed_valid_and_null_bytes():
+    ingester = DocumentIngester()
+    with tempfile.NamedTemporaryFile(mode="w+", suffix=".txt", delete=False) as f:
+        f.write("Valid \x00text content \x01with null bytes.")
+        f_path = f.name
+
+    try:
+        res = ingester.ingest_document(f_path)
+        assert res["status"] == "SUCCESS"
+        assert res["total_chunks"] == 1
+        assert res["chunks"][0]["text"] == "Valid text content with null bytes."
+    finally:
+        if os.path.exists(f_path):
+            os.remove(f_path)
+
+
 def test_document_ingestion_pdf_file():
     ingester = DocumentIngester()
     with tempfile.NamedTemporaryFile(suffix=".pdf", delete=False) as f:
