@@ -127,6 +127,72 @@ def test_document_ingestion_text_file():
             os.remove(f_path)
 
 
+def test_document_ingestion_empty_file():
+    ingester = DocumentIngester()
+    with tempfile.NamedTemporaryFile(mode="w+", suffix=".txt", delete=False) as f:
+        f.write("")
+        f_path = f.name
+
+    try:
+        res = ingester.ingest_document(f_path)
+        assert res["status"] == "SUCCESS"
+        assert res["total_chunks"] == 0
+        assert res["chunks"] == []
+    finally:
+        if os.path.exists(f_path):
+            os.remove(f_path)
+
+
+def test_document_ingestion_whitespace_only():
+    ingester = DocumentIngester()
+    with tempfile.NamedTemporaryFile(mode="w+", suffix=".txt", delete=False) as f:
+        f.write("   \n\t\n   ")
+        f_path = f.name
+
+    try:
+        res = ingester.ingest_document(f_path)
+        assert res["status"] == "SUCCESS"
+        assert res["total_chunks"] == 0
+        assert res["chunks"] == []
+    finally:
+        if os.path.exists(f_path):
+            os.remove(f_path)
+
+
+def test_document_ingestion_unsupported_characters_and_null_bytes():
+    ingester = DocumentIngester()
+    with tempfile.NamedTemporaryFile(mode="wb", suffix=".txt", delete=False) as f:
+        f.write(b"Hello\x00 World!\x07\x1fValid Text Here.")
+        f_path = f.name
+
+    try:
+        res = ingester.ingest_document(f_path)
+        assert res["status"] == "SUCCESS"
+        assert res["total_chunks"] == 1
+        assert res["chunks"][0]["text"] == "Hello World!Valid Text Here."
+        assert "\x00" not in res["chunks"][0]["text"]
+        assert "\x07" not in res["chunks"][0]["text"]
+    finally:
+        if os.path.exists(f_path):
+            os.remove(f_path)
+
+
+def test_document_ingestion_direct_chunking_validation():
+    ingester = DocumentIngester()
+
+    # Empty payload
+    assert ingester.chunk_text("") == []
+    assert ingester.chunk_text(None) == []
+
+    # Whitespace and control chars only
+    assert ingester.chunk_text("\x00\x01   \x08") == []
+
+    # Text containing null bytes and control chars
+    chunks = ingester.chunk_text("Chunk\x001 test payload.\x1f")
+    assert len(chunks) == 1
+    assert chunks[0]["text"] == "Chunk1 test payload."
+
+
 def test_document_ingestion_pdf_file():
     ingester = DocumentIngester()
     with tempfile.NamedTemporaryFile(suffix=".pdf", delete=False) as f:
